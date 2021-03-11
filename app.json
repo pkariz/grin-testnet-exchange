@@ -1,0 +1,27 @@
+{
+    "name": "Grin exchange",
+    "description": "",
+    "repository": "https://github.com/pkariz/grin-testnet-exchange",
+    "keywords": ["grin", "vue", "vuejs", "django"],
+    "env": {
+      "DJANGO_SETTINGS_MODULE": {
+        "description": "Set Django Settings to Production",
+        "value": "backend.settings.prod"
+      }
+     },
+     "engines": {
+        "yarn": "1.4.0",
+        "npm": "6.2.0"
+     },
+    "addons": [
+
+     ],
+     "buildpacks": [
+       {
+         "url": "heroku/nodejs"
+        },
+        {
+          "url": "heroku/python"
+        }
+    ]
+  }

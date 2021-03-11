@@ -1,0 +1,79 @@
+version: "3.5"
+
+volumes:
+  db-data: {}
+  redis-data: {}
+  django_static: {}
+
+services:
+  postgres:
+    image: postgres
+    env_file: .env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  nginx:
+    build:
+      context: .
+      dockerfile: ./docker/nginx/Dockerfile
+    volumes:
+      - ./docker/nginx/conf.d:/etc/nginx/conf.d
+      - django_static:/dist_django
+      - ./docker/nginx/certs:/etc/nginx/certs
+    network_mode: host
+    command: /start.sh
+    depends_on:
+      - django
+      - postgres
+      - redis
+
+  django:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: /start-prod-django.sh
+    volumes:
+      - .:/code
+      - django_static:/code/dist/static
+    network_mode: host
+    depends_on:
+      - postgres
+      - redis
+
+  redis:
+    image: redis
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+
+  dramatiq-workers:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: pipenv run python manage.py rundramatiq
+    network_mode: host
+    volumes:
+      - .:/code
+    depends_on:
+      - django
+      - redis
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: pipenv run python manage.py run_scheduler
+    network_mode: host
+    volumes:
+      - .:/code
+    depends_on:
+      - django
+      - redis
+      - dramatiq-workers

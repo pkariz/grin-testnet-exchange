@@ -1,0 +1,75 @@
+version: "3.5"
+
+volumes:
+  db-data: {}
+  redis-data: {}
+
+services:
+  postgres:
+    image: postgres
+    env_file: .env
+    volumes:
+      - db-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+  django:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: /start-django.sh
+    volumes:
+      - .:/code
+    network_mode: host
+    ports:
+      - "8000:8000"
+    depends_on:
+      - postgres
+      - redis
+
+  redis:
+    image: redis
+    volumes:
+      - redis-data:/data
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "6379:6379"
+
+  gui:
+    build:
+      context: .
+      dockerfile: ./docker/gui/Dockerfile
+    command: yarn serve
+    volumes:
+      - .:/code
+    ports:
+      - "8080:8080"
+    depends_on:
+      - django
+
+  dramatiq-workers:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: pipenv run python manage.py rundramatiq
+    network_mode: host
+    volumes:
+      - .:/code
+    depends_on:
+      - django
+      - redis
+
+  scheduler:
+    build:
+      context: .
+      dockerfile: ./docker/django/Dockerfile
+    env_file: .env
+    command: pipenv run python manage.py run_scheduler
+    network_mode: host
+    volumes:
+      - .:/code
+    depends_on:
+      - django
+      - redis
+      - dramatiq-workers
