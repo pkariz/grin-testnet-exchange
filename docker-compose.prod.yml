@@ -2,7 +2,6 @@ version: "3.5"
 
 volumes:
   db-data: {}
-  redis-data: {}
   django_static: {}
 
 services:
@@ -45,8 +44,9 @@ services:
 
   redis:
     image: redis
+    user: root
     volumes:
-      - redis-data:/data
+      - ./redis-data:/data
     command: ["redis-server", "--appendonly", "yes"]
     ports:
       - "127.0.0.1:6379:6379"
