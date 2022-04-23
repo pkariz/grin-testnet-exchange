@@ -452,3 +452,40 @@ class WalletV3:
         }
         resp = self.post_encrypted('create_wallet', params)
         return resp["result"]["Ok"]
+
+    # https://docs.rs/grin_wallet_api/5.0.1/grin_wallet_api/trait.OwnerRpc.html#tymethod.retrieve_outputs
+    def contract_new(self, net_change, counterparty_addr, is_payjoin=True, num_participants=2):
+        params = {
+            'token': self.token,
+            'args': {
+                'setup_args': {
+                    'net_change': net_change,
+                    'num_participants': num_participants,
+                    'early_lock': False,
+                    'is_payjoin': is_payjoin,
+                    'use_inputs': None,
+                },
+            },
+        }
+        resp = self.post_encrypted('contract_new', params)
+        slate = resp["result"]["Ok"]
+        return slate
+
+    # https://docs.rs/grin_wallet_api/5.0.1/grin_wallet_api/trait.OwnerRpc.html#tymethod.retrieve_outputs
+    def contract_sign(self, expected_net_change, slate, is_payjoin=True, num_participants=2):
+        params = {
+            'token': self.token,
+            'slate': slate,
+            'args': {
+                'setup_args': {
+                    'net_change': expected_net_change,
+                    'num_participants': num_participants,
+                    'early_lock': False,
+                    'is_payjoin': is_payjoin,
+                    'use_inputs': None,
+                },
+            },
+        }
+        resp = self.post_encrypted('contract_sign', params)
+        slate = resp["result"]["Ok"]
+        return slate
