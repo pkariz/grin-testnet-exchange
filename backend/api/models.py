@@ -104,17 +104,14 @@ class Deposit(TimeStampedModel):
     def save(self, *args, **kwargs):
         """On deposit create set permissions"""
         created = self.pk is None
-        if not created:
+        if created:
+            # we show amount as locked even if the contract still needs user's signature
+            balance = self.balance
+            balance.locked_amount = balance.locked_amount + self.amount
+            balance.save()
+        else:
             current_deposit = Deposit.objects.get(pk=self.pk)
             if (
-                current_deposit.status == 'awaiting transaction signature' and
-                self.status == 'awaiting confirmation'
-            ):
-                # finished the transaction, lock amount in balance
-                balance = self.balance
-                balance.locked_amount = balance.locked_amount + self.amount
-                balance.save()
-            elif (
                 self.status == 'awaiting confirmation' and
                 self.confirmations == settings.REQUIRED_CONFIRMATIONS
             ):
@@ -175,7 +172,8 @@ class Withdrawal(TimeStampedModel):
         default=0
     )
     # tx_slate_id is needed in case when we want to cancel the withdrawal after
-    # the first step of SRS (eg. when new withdrawal is initiated)
+    # the first step of SRS (eg. when new withdrawal is initiated) or to retrieve
+    # a tx for which we don't know the final kernel yet
     tx_slate_id = models.CharField(unique=True, max_length=255)
     # we store kernel excess to update number of confirmations
     kernel_excess = models.CharField(

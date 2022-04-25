@@ -5,6 +5,9 @@ from .node import NodeV2API
 from .wallet import WalletV3, WalletError
 
 import dramatiq
+import logging
+
+logger = logging.getLogger(__name__)
 
 
 # NOTE: django-dramatiq auto-discovers tasks in app/tasks.py
@@ -22,8 +25,22 @@ def update_deposits_and_withdrawals():
     ))
     # we initialize it here, just so that we don't need to set it multiple times
     # later if it turns out that multiple transactions need to be re-broadcasted
-    wallet_api = None
+    wallet_api = WalletV3.get_wallet_api()
     for deposit_or_withdrawal in deposits + withdrawals:
+        if not deposit_or_withdrawal.kernel_excess:
+            # we don't have the kernel_excess yet, retrieve tx so that we get its kernel
+            # if it's confirmed
+            try:
+                tx = wallet_api.retrieve_txs(tx_slate_id=deposit_or_withdrawal.tx_slate_id, refresh=False)[0]
+            except (KeyError, WalletError) as e:
+                logger.error('Failed to retrieve tx in update_deposits_and_withdrawals, tx_slate_id: {}, e: {}'.format(
+                    deposit_or_withdrawal.tx_slate_id, str(e)))
+            if tx['confirmation_ts']:
+                logger.info('updating kernel from {} to {}'.format(deposit_or_withdrawal.kernel_excess, tx['kernel_excess']))
+                deposit_or_withdrawal.kernel_excess = tx['kernel_excess']
+                deposit_or_withdrawal.save()
+        if not deposit_or_withdrawal.kernel_excess:
+            continue
         try:
             kernel_excess_height = node_api.get_kernel(
                 deposit_or_withdrawal.kernel_excess,

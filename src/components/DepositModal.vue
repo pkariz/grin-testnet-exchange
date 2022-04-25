@@ -11,7 +11,7 @@
             :complete="currentStep > 1"
             step="1"
           >
-            Amount
+            Paste contract
           </v-stepper-step>
 
           <v-divider></v-divider>
@@ -20,7 +20,7 @@
             :complete="currentStep > 2"
             step="2"
           >
-            Transaction contract
+            Sign contract
           </v-stepper-step>
 
           <v-divider></v-divider>
@@ -29,128 +29,21 @@
             :complete="validSlatepack"
             step="3"
           >
-            Signature
+            Copy contract
           </v-stepper-step>
         </v-stepper-header>
 
         <v-stepper-items>
           <v-stepper-content step="1" class="pa-4">
-            <!-- STEP 1: pick amount to deposit -->
+            <!-- STEP 1: user pastes created contract -->
             <v-card
               class="mb-12"
               height="600px"
-            >
-            <v-card-text>
-              <h2 class="my-5">
-                Please enter the amount of grin you wish to deposit and your wallet address.
-                Both are needed to generate a transaction contract.
-              </h2>
-              <ValidationObserver
-                v-slot="{ invalid, validated, handleSubmit }"
-              >
-                <ValidationProvider
-                  name="amount"
-                  rules="required|min_value:0.1"
-                  v-slot="{ errors }"
-                >
-                  <v-text-field
-                    v-model="contractData.amount"
-                    type="number"
-                    label="Deposit amount"
-                    :error-messages="errors"
-                    @input="restrictDecimal"
-                  />
-                </ValidationProvider>
-                <ValidationProvider
-                  name="address"
-                  rules="required"
-                  v-slot="{ errors }"
-                >
-                  <v-text-field
-                    v-model="contractData.thirdPartyAddress"
-                    label="Wallet address"
-                    :error-messages="errors"
-                    hint="Enter your wallet address"
-                    persistent-hint
-                  />
-                </ValidationProvider>
-                <v-textarea
-                  v-model="contractData.message"
-                  name="message"
-                  label="Message"
-                  rows="4"
-                  class="mt-5"
-                  disabled
-                ></v-textarea>
-              </ValidationObserver>
-            </v-card-text>
-            </v-card>
-
-            <v-btn
-              small
-              tile
-              color="primary"
-              class="black--text"
-              @click="moveToStep2"
-              :disabled="contractData.amount < minAmount || contractData.thirdPartyAddress === ''"
-              :loading="loading.step2"
-            >
-              Continue
-            </v-btn>
-
-            <v-btn small tile text class="mx-5" @click="$emit('close')">
-              Cancel
-            </v-btn>
-          </v-stepper-content>
-
-          <v-stepper-content step="2" class="pa-4">
-            <!-- STEP 2: copy transaction contract -->
-            <v-card
-              class="mb-12"
-              height="600px"
-              v-if="currentStep > 1"
-            >
-            <v-card-text>
-              <transaction-contract
-                :txType="contractData.txType"
-                :ownerInitiated="contractData.ownerInitiated"
-                :nrParticipants="contractData.nrParticipants"
-                :amount="decimalAmount"
-                :ownerAddress="contractData.ownerAddress"
-                :thirdPartyAddress="contractData.thirdPartyAddress"
-                :message="contractData.message"
-                :signatures="[...contractData.signatures]"
-                :slatepackMsgToCopy="contractData.initialSlatepackMsg"
-              ></transaction-contract>
-            </v-card-text>
-            </v-card>
-
-            <v-btn
-              small
-              tile
-              color="primary"
-              class="black--text"
-              @click="currentStep = 3"
-            >
-              Continue
-            </v-btn>
-
-            <v-btn small tile text class="mx-5" @click="$emit('close')">
-              Cancel
-            </v-btn>
-          </v-stepper-content>
-
-          <v-stepper-content step="3" class="pa-4">
-            <!-- STEP 3: paste signed contract -->
-            <v-card
-              class="mb-12"
-              height="600px"
-              v-if="currentStep > 2"
             >
             <v-card-text>
               <v-row class="text-center align-self-center justify-center" style="height: 600px" v-if="loading.verifyingSlatepack">
                 <v-col cols="12" class="my-5" style="height: 50px">
-                  <h2>Completing transaction contract</h2>
+                  <h2>Reading contract</h2>
                 </v-col>
                 <v-col style="height: 100%">
                 <v-progress-circular
@@ -163,14 +56,15 @@
               <v-textarea
                 v-else-if="!validSlatepack"
                 id="slatepackmsg2"
-                v-model="signedSlatepackMsg"
+                v-model="pastedSlatepackMsg"
                 name="slatepack-msg-2"
-                label="Paste signed transaction contract"
+                label="Paste transaction contract"
                 class="pa-0"
                 rows="8"
                 @input="onSlatepackPaste"
                 :loading="loading.verifyingSlatepack"
               ></v-textarea>
+              <!--
               <v-row class="text-center align-self-center justify-center" style="height: 600px" v-else>
                 <v-col cols="12" class="mt-5" style="height: 40px">
                   <h2>Transaction contract completed</h2>
@@ -185,6 +79,7 @@
                   and gets enough confirmations your grin balance on the exchange will be automatically credited.
                 </v-col>
               </v-row>
+              -->
             </v-card-text>
             </v-card>
             <v-btn
@@ -204,6 +99,31 @@
               text
               @click="$emit('close')"
             >
+              Cancel
+            </v-btn>
+          </v-stepper-content>
+          <v-stepper-content step="2" class="pa-4">
+            <!-- STEP 2: view transaction contract and confirm -->
+            <v-card
+              class="mb-12"
+              height="600px"
+              v-if="currentStep === 2"
+            >
+            <v-card-text>
+              <transaction-contract
+                :step="2"
+                :amount="decimalAmount"
+                :payerAddress="contractData.payerAddress"
+                :receiverAddress="contractData.receiverAddress"
+                :message="contractData.message"
+                :signatures="[...contractData.signatures]"
+                :slatepack="pastedSlatepackMsg"
+                @signed="$emit('deposit-complete')"
+              ></transaction-contract>
+            </v-card-text>
+            </v-card>
+
+            <v-btn small tile text class="mx-5" @click="$emit('close')">
               Cancel
             </v-btn>
           </v-stepper-content>
@@ -231,21 +151,20 @@ export default {
   },
   data: () => ({
     contractData: {
-      txType: 'invoice',
-      ownerInitiated: true,
-      nrParticipants: 2,
       // amount is not a number, it's a result of calling .match on a number
+      step: 2,
       amount: null,
-      thirdPartyAddress: '',
-      ownerAddress: String(process.env.VUE_APP_EXCHANGE_WALLET_ADDRESS),
+      payerAddress: '',
+      receiverAddress: String(process.env.VUE_APP_EXCHANGE_WALLET_ADDRESS),
       signatures: [],
-      message: null,
+      message: '',
       initialSlatepackMsg: null,
     },
     currentStep: 1,
     minAmount: new Decimal(0.1),
-    signedSlatepackMsg: null,
+    pastedSlatepackMsg: null,
     validSlatepack: false,
+    newSlatepack: null,
     loading: {
       step2: false,
       verifyingSlatepack: false,
@@ -261,41 +180,41 @@ export default {
   },
   methods: {
     copySlatepackMsg: function() {
-      copyToClipboard(this.slatepackMsg);
+      copyToClipboard(this.newSlatepack);
       this.$toasted.show('Transaction contract copied!')
     },
     onSlatepackPaste () {
+      if (this.pastedSlatepackMsg === '') {
+        return;
+      }
       this.loading.verifyingSlatepack = true;
-      WalletService.finishDeposit(
+      WalletService.startDeposit(
         'GRIN',
-        { 'slatepack_msg': this.signedSlatepackMsg }
-      ).then(() => {
-        this.validSlatepack = true;
-        this.$emit('deposit-complete');
+        this.pastedSlatepackMsg
+      ).then(({ slate, slatepack }) => {
+        if (slate.sta !== 'S1') {
+          this.$toasted.error('Invalid slatepack');
+          return;
+        }
+        setTimeout(() => {
+          this.validSlatepack = true;
+          this.contractData.payerAddress = slatepack.sender;
+          this.contractData.amount = (slate.amt / 1000000000) + '';
+          this.restrictDecimal();
+          this.currentStep = 2;
+          this.loading.verifyingSlatepack = false;
+        }, 1000);
       }).catch(() => {
-        this.$toasted.error('Transaction finalization failed');
-      }).finally(() => {
+        this.$toasted.error('Failed to parse contract state.');
         this.loading.verifyingSlatepack = false;
       });
     },
     restrictDecimal () {
       this.contractData.amount = this.contractData.amount.match(/^\d+\.?\d{0,9}/);
     },
-    moveToStep2 () {
-      this.loading.step2 = true;
-      WalletService.startDeposit(
-        'GRIN',
-        this.contractData.thirdPartyAddress,
-        new Decimal(this.contractData.amount[0]),
-        this.contractData.message
-      ).then((slatepackMsg) => {
-        this.contractData.initialSlatepackMsg = slatepackMsg;
-        this.currentStep = 2;
-      }).catch((error) => {
-        this.$toasted.error(error.response.data.detail);
-      }).finally(() => {
-        this.loading.step2 = false;
-      });
+    moveToStep3 (newSlatepack) {
+      this.newSlatepack = newSlatepack;
+      this.currentStep = 3;
     },
     ...mapState([
       'user',

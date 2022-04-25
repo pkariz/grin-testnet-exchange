@@ -67,7 +67,7 @@
                   v-slot="{ errors }"
                 >
                   <v-text-field
-                    v-model="contractData.thirdPartyAddress"
+                    v-model="contractData.receiverAddress"
                     label="Wallet address"
                     :error-messages="errors"
                     hint="Enter your wallet address"
@@ -78,7 +78,7 @@
                   v-model="contractData.message"
                   name="message"
                   label="Message"
-                  rows="4"
+                  rows="2"
                   class="mt-5"
                   disabled
                 ></v-textarea>
@@ -92,7 +92,7 @@
               color="primary"
               class="black--text"
               @click="moveToStep2"
-              :disabled="contractData.amount < minAmount || contractData.thirdPartyAddress === ''"
+              :disabled="contractData.amount < minAmount || contractData.receiverAddress === ''"
               :loading="loading.step2"
             >
               Continue
@@ -112,15 +112,13 @@
             >
             <v-card-text>
               <transaction-contract
-                :txType="contractData.txType"
-                :ownerInitiated="contractData.ownerInitiated"
-                :nrParticipants="contractData.nrParticipants"
+                :step="1"
                 :amount="decimalAmount"
-                :ownerAddress="contractData.ownerAddress"
-                :thirdPartyAddress="contractData.thirdPartyAddress"
+                :payerAddress="contractData.payerAddress"
+                :receiverAddress="contractData.receiverAddress"
                 :message="contractData.message"
                 :signatures="[...contractData.signatures]"
-                :slatepackMsgToCopy="contractData.initialSlatepackMsg"
+                :slatepack="contractData.slatepackMsg"
               ></transaction-contract>
             </v-card-text>
             </v-card>
@@ -181,9 +179,9 @@
                   </v-icon>
                 </v-col>
                 <v-col cols="12">
-                  Please check your withdrawal history for on-chain confirmation. We have locked the withdrawal amount,
+                  <h3>Please check your withdrawal history for on-chain confirmation. We have locked the withdrawal amount,
                   once the transaction lands on the chain and gets enough confirmations your grin balance on the exchange
-                  will be automatically reduced.
+                  will be automatically reduced.</h3>
                 </v-col>
               </v-row>
             </v-card-text>
@@ -232,16 +230,13 @@ export default {
   },
   data: () => ({
     contractData: {
-      txType: 'payment',
-      ownerInitiated: true,
-      nrParticipants: 2,
       // amount is not a number, it's a result of calling .match on a number
       amount: null,
-      thirdPartyAddress: '',
-      ownerAddress: String(process.env.VUE_APP_EXCHANGE_WALLET_ADDRESS),
+      receiverAddress: '',
+      payerAddress: String(process.env.VUE_APP_EXCHANGE_WALLET_ADDRESS),
       signatures: [],
       message: 'withdrawal grin user: arnold',
-      initialSlatepackMsg: null,
+      slatepackMsg: null,
     },
     currentStep: 1,
     minAmount: new Decimal(0.1),
@@ -286,12 +281,12 @@ export default {
       this.loading.step2 = true;
       WalletService.startWithdrawal(
         'GRIN',
-        this.contractData.thirdPartyAddress,
+        this.contractData.receiverAddress,
         new Decimal(this.contractData.amount[0]),
         this.contractData.message
       )
       .then((slatepackMsg) => {
-        this.contractData.initialSlatepackMsg = slatepackMsg;
+        this.contractData.slatepackMsg = slatepackMsg;
         this.currentStep = 2;
       })
       .catch((error) => {

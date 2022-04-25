@@ -1,12 +1,12 @@
 import { api } from '@/services/auth'
 
 export default {
-  startDeposit(symbol, address, amount, message) {
-    return api.post(`/api/deposits/start/`, {symbol, address, amount, message})
+  startDeposit(symbol, slatepackMsg) {
+    return api.post(`/api/deposits/start/`, {symbol, slatepack_msg: slatepackMsg})
       .then(response => response.data)
   },
-  finishDeposit(symbol, data) {
-    return api.post(`/api/deposits/finish/`, {symbol, data})
+  finishDeposit(symbol, slatepackMsg) {
+    return api.post(`/api/deposits/finish/`, {symbol, slatepack_msg: slatepackMsg})
       .then(response => response.data)
   },
   startWithdrawal(symbol, address, amount, message) {

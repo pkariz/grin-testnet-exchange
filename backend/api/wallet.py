@@ -408,6 +408,17 @@ class WalletV3:
         resp = self.post_encrypted('set_tor_config', params)
         return True
 
+    # https://docs.rs/grin_wallet_api/5.0.1/grin_wallet_api/trait.OwnerRpc.html#tymethod.decode_slatepack_message
+    def decode_slatepack_message(self, slatepack, secret_indices):
+        params = {
+            'token': self.token,
+            # NOTE: there's a bug, message param should be named 'slatepack' according to api docs
+            'message': slatepack,
+            'secret_indices': secret_indices,
+        }
+        resp = self.post_encrypted('decode_slatepack_message', params)
+        return resp["result"]["Ok"]
+
     # https://docs.rs/grin_wallet_api/5.0.1/grin_wallet_api/trait.OwnerRpc.html#tymethod.slate_from_slatepack_message
     def slate_from_slatepack_message(self, message, secret_indices):
         params = {

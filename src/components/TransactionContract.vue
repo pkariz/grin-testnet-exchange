@@ -5,18 +5,10 @@
     </h2>
     <v-row>
       <v-col class="pr-0" style="max-width: 80px">
-        <strong>Type:</strong>
-      </v-col>
-      <v-col>
-        <span style="text-transform: capitalize;">{{ txType }}</span>
-      </v-col>
-    </v-row>
-    <v-row>
-      <v-col class="pr-0" style="max-width: 80px">
         <strong>Payer:</strong>
       </v-col>
       <v-col>
-        {{ payer }}
+        {{ payerAddress }}
       </v-col>
     </v-row>
     <v-row>
@@ -24,7 +16,7 @@
         <strong>Receiver:</strong>
       </v-col>
       <v-col>
-        {{ receiver }}
+        {{ receiverAddress }}
       </v-col>
     </v-row>
     <v-row>
@@ -43,7 +35,7 @@
         <v-textarea
           v-model="message"
           name="message"
-          rows="4"
+          rows="2"
           class="pt-0 mt-0"
           disabled
         ></v-textarea>
@@ -51,7 +43,7 @@
     </v-row>
     <v-row>
       <v-col>
-        <strong>Signatures ({{ signatures.length + '/' + nrParticipants }}):</strong>
+        <strong>Signatures ({{ signatures.length + '/2' }}):</strong>
         <ul v-if="signatures.length > 0">
           <li v-for="signature in signatures" :key="signature">
             {{ signature }}
@@ -61,11 +53,20 @@
           </li>
         </ul>
         <span v-else class="ml-5">Nobody has signed the contract yet</span>
+        <br>
+        <h2 class="mt-5" v-if="step === 2 && signed">
+          Please copy the contract, sign it with your wallet and broadcast the transaction. Once the transaction lands on the chain
+          and gets enough confirmations your grin balance on the exchange will be automatically credited.
+        </h2>
+        <h2 class="mt-5" v-if="step === 1">
+          Please copy the contract, sign it with your wallet and paste signed contract on the next step.
+        </h2>
+        <br>
       </v-col>
     </v-row>
     <v-col class="text-right">
       <v-btn
-        v-if="needsSignature"
+        v-if="step !== 1 && !signed"
         color="primary"
         class="black--text"
         @click="signContract"
@@ -74,7 +75,7 @@
         Sign contract
       </v-btn>
       <v-btn
-        v-else
+        v-if="step === 1 || signed"
         color="primary"
         class="black--text"
         @click="copySlatepackMsg"
@@ -87,59 +88,57 @@
 
 <script>
 import { copyToClipboard } from '@/shared/helpers';
+import WalletService from '@/services/wallet';
 import { Decimal } from 'decimal.js';
 
 export default {
   name: 'TransactionContract',
   props: {
-    nrParticipants: Number,
-    txType: String,
     amount: Decimal,
-    ownerAddress: String,
-    thirdPartyAddress: String,
-    ownerInitiated: Boolean,
+    // payerAddress is user's address
+    payerAddress: String,
+    // receiverAddress is exchange's address
+    receiverAddress: String,
+    step: Number,
     message: String,
     signatures: Array,
-    slatepackMsgToCopy: {
-      type: String,
-      default: '',
-    },
-  },
-  computed: {
-    payer: function () {
-      if (this.txType === 'invoice') {
-        return this.ownerInitiated ? this.thirdPartyAddress : this.ownerAddress;
-      } else {
-        // payment type
-        return this.ownerInitiated ? this.ownerAddress : this.thirdPartyAddress;
-      }
-    },
-    receiver: function () {
-      return this.payer === this.ownerAddress ? this.thirdPartyAddress : this.ownerAddress;
-    },
-    needsSignature: function() {
-      if (this.signatures.includes(this.ownerAddress)) {
-        return false;
-      }
-      return this.ownerInitiated ? this.signatures.length > 0 : true;
-    },
+    slatepack: String,
   },
   data: () => ({
     loading: {
       signing: false,
     },
+    signed: false,
+    signedSlatepackMsg: null,
   }),
   methods: {
     copySlatepackMsg: function() {
-      copyToClipboard(this.slatepackMsgToCopy);
+      let copySlatepackMsg = this.slatepack;
+      if (this.step !== 1) {
+        copySlatepackMsg = this.signedSlatepackMsg;
+      }
+      if (!copySlatepackMsg) {
+        this.$toasted.error('Invalid slatepack msg');
+        return;
+      }
+      copyToClipboard(copySlatepackMsg);
       this.$toasted.show('Transaction contract copied!')
     },
     signContract: function() {
       this.loading.signing = true;
-      setTimeout(() => {
-        this.loading.signing = false;
+      WalletService.finishDeposit(
+        'GRIN',
+        this.slatepack,
+      ).then((data) => {
+        this.signedSlatepackMsg = data.slatepack;
+        this.signatures.push(this.receiverAddress);
+        this.signed = true;
         this.$emit('signed');
-      }, 2000);
+      }).catch((error) => {
+        this.$toasted.error(error.response.data.detail);
+      }).finally(() => {
+        this.loading.signing = false;
+      });
     },
   },
 }
