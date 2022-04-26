@@ -44,7 +44,7 @@ export default {
       { text: 'Confirmations', value: 'confirmations', width: '10%' },
       { text: 'Status', value: 'status', width: '20%' },
     ],
-    neededConfirmations: 10,
+    neededConfirmations: 3,
   }),
   methods: {
     formatDate(value){

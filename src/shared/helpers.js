@@ -1,4 +1,6 @@
 export function copyToClipboard(str) {
+  if (navigator && navigator.clipboard && navigator.clipboard.writeText)
+    return navigator.clipboard.writeText(str);
   const el = document.createElement('textarea');
   el.value = str;
   document.body.appendChild(el);

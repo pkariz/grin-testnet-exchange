@@ -29,7 +29,7 @@ env.read_env(env_file)
 
 # NOTE: this exchange example needs to be changed if required confirmations is 0
 # however i see no reason for such case
-REQUIRED_CONFIRMATIONS = 10
+REQUIRED_CONFIRMATIONS = 3
 
 WALLET_API = {
     'URL': env('WALLET_API_URL'),

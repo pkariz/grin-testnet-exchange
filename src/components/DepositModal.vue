@@ -3,7 +3,7 @@
     <v-dialog
       v-model="dialog"
       persistent
-      max-width="600"
+      max-width="800"
     >
       <v-stepper v-model="currentStep">
         <v-stepper-header>
@@ -17,31 +17,23 @@
           <v-divider></v-divider>
 
           <v-stepper-step
-            :complete="currentStep > 2"
+            :complete="copied"
             step="2"
           >
-            Sign contract
+            Sign and copy contract
           </v-stepper-step>
 
-          <v-divider></v-divider>
-
-          <v-stepper-step
-            :complete="validSlatepack"
-            step="3"
-          >
-            Copy contract
-          </v-stepper-step>
         </v-stepper-header>
 
         <v-stepper-items>
           <v-stepper-content step="1" class="pa-4">
             <!-- STEP 1: user pastes created contract -->
             <v-card
-              class="mb-12"
-              height="600px"
+              class="mb-6"
+              height="700px"
             >
             <v-card-text>
-              <v-row class="text-center align-self-center justify-center" style="height: 600px" v-if="loading.verifyingSlatepack">
+              <v-row class="text-center align-self-center justify-center" style="height: 700px" v-if="loading.verifyingSlatepack">
                 <v-col cols="12" class="my-5" style="height: 50px">
                   <h2>Reading contract</h2>
                 </v-col>
@@ -53,8 +45,19 @@
                 ></v-progress-circular>
                 </v-col>
               </v-row>
+              <template v-else-if="!validSlatepack">
+              <p>
+                Paste the result of running a grin-rust cli command (enter your own amount in it):<br>
+                <strong>./grin-wallet --testnet contract new --send=&lt;amount&gt; --encrypt-for= tgrin1vsdvj...fxl8zksg7u4ut</strong>&nbsp;&nbsp;
+                <v-fab-transition>
+                  <v-icon v-if="cmdCopied" color="yellow">mdi-check</v-icon>
+                  <v-icon v-else @click="copyCmd('./grin-wallet --testnet contract new --send=<amount> --encrypt-for=tgrin1vsdvjhyv2rqnc8pw0g9d7atx8z32uq52r6vjk9tlh6tmkfxl8zksg7u4ut')">
+                    mdi-content-copy
+                  </v-icon>
+                </v-fab-transition>
+              </p>
+              <br>
               <v-textarea
-                v-else-if="!validSlatepack"
                 id="slatepackmsg2"
                 v-model="pastedSlatepackMsg"
                 name="slatepack-msg-2"
@@ -64,39 +67,23 @@
                 @input="onSlatepackPaste"
                 :loading="loading.verifyingSlatepack"
               ></v-textarea>
-              <!--
-              <v-row class="text-center align-self-center justify-center" style="height: 600px" v-else>
-                <v-col cols="12" class="mt-5" style="height: 40px">
-                  <h2>Transaction contract completed</h2>
-                </v-col>
-                <v-col cols="12">
-                  <v-icon large color="primary">
-                    mdi-check
-                  </v-icon>
-                </v-col>
-                <v-col cols="12">
-                  Please check your deposit history for on-chain confirmation. Once the transaction lands on the chain
-                  and gets enough confirmations your grin balance on the exchange will be automatically credited.
-                </v-col>
-              </v-row>
-              -->
+              </template>
             </v-card-text>
             </v-card>
             <v-btn
               v-if="!loading.verifyingSlatepack && validSlatepack"
-              small
               tile
               color="primary"
-              class="black--text"
+              class="black--text mx-5"
               @click="$emit('close')"
             >
               Close
             </v-btn>
             <v-btn
               v-if="!validSlatepack"
-              small
               tile
               text
+              class="mx-5"
               @click="$emit('close')"
             >
               Cancel
@@ -105,8 +92,8 @@
           <v-stepper-content step="2" class="pa-4">
             <!-- STEP 2: view transaction contract and confirm -->
             <v-card
-              class="mb-12"
-              height="600px"
+              class="mb-6"
+              height="700px"
               v-if="currentStep === 2"
             >
             <v-card-text>
@@ -116,15 +103,17 @@
                 :payerAddress="contractData.payerAddress"
                 :receiverAddress="contractData.receiverAddress"
                 :message="contractData.message"
-                :signatures="[...contractData.signatures]"
+                :signatures="contractData.signatures"
                 :slatepack="pastedSlatepackMsg"
+                :autoSign="true"
                 @signed="$emit('deposit-complete')"
+                @copied="copied=true"
               ></transaction-contract>
             </v-card-text>
             </v-card>
 
-            <v-btn small tile text class="mx-5" @click="$emit('close')">
-              Cancel
+            <v-btn tile text class="mx-5" @click="$emit('close')">
+              {{ copied ? 'Close' : 'Cancel' }}
             </v-btn>
           </v-stepper-content>
         </v-stepper-items>
@@ -134,9 +123,9 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex'
-import { copyToClipboard } from '@/shared/helpers';
 import TransactionContract from '@/components/TransactionContract.vue';
 import WalletService from '@/services/wallet';
+import { copyToClipboard } from '@/shared/helpers';
 import { Decimal } from 'decimal.js';
 
 const { mapState } = createNamespacedHelpers('auth')
@@ -164,7 +153,8 @@ export default {
     minAmount: new Decimal(0.1),
     pastedSlatepackMsg: null,
     validSlatepack: false,
-    newSlatepack: null,
+    copied: false,
+    cmdCopied: false,
     loading: {
       step2: false,
       verifyingSlatepack: false,
@@ -179,10 +169,6 @@ export default {
     }
   },
   methods: {
-    copySlatepackMsg: function() {
-      copyToClipboard(this.newSlatepack);
-      this.$toasted.show('Transaction contract copied!')
-    },
     onSlatepackPaste () {
       if (this.pastedSlatepackMsg === '') {
         return;
@@ -212,9 +198,12 @@ export default {
     restrictDecimal () {
       this.contractData.amount = this.contractData.amount.match(/^\d+\.?\d{0,9}/);
     },
-    moveToStep3 (newSlatepack) {
-      this.newSlatepack = newSlatepack;
-      this.currentStep = 3;
+    copyCmd: function(cmd) {
+      copyToClipboard(cmd);
+      this.cmdCopied = true;
+      setTimeout(() => {
+        this.cmdCopied = false;
+      }, 2000);
     },
     ...mapState([
       'user',

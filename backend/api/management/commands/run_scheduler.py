@@ -10,6 +10,6 @@ class Command(BaseCommand):
     def handle(self, *args, **kwargs):
         self.stdout.write(self.style.NOTICE('Preparing scheduler'))
         scheduler = BlockingScheduler(timezone=UTC)
-        scheduler.add_job(periodically_run_job, 'interval', minutes=1)
+        scheduler.add_job(periodically_run_job, 'interval', seconds=20)
         self.stdout.write(self.style.NOTICE('Start scheduler'))
         scheduler.start()

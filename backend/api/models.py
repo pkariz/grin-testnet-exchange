@@ -104,6 +104,7 @@ class Deposit(TimeStampedModel):
     def save(self, *args, **kwargs):
         """On deposit create set permissions"""
         created = self.pk is None
+        self.confirmations = min(self.confirmations, settings.REQUIRED_CONFIRMATIONS)
         if created:
             # we show amount as locked even if the contract still needs user's signature
             balance = self.balance
@@ -194,6 +195,7 @@ class Withdrawal(TimeStampedModel):
     def save(self, *args, **kwargs):
         """On withdrawal create set permissions"""
         created = self.pk is None
+        self.confirmations = min(self.confirmations, settings.REQUIRED_CONFIRMATIONS)
         if not created:
             current_withdrawal = Withdrawal.objects.get(pk=self.pk)
             if (

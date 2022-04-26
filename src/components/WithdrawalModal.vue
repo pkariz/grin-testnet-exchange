@@ -3,7 +3,7 @@
     <v-dialog
       v-model="dialog"
       persistent
-      max-width="600"
+      max-width="800"
     >
       <v-stepper v-model="currentStep">
         <v-stepper-header>
@@ -17,19 +17,10 @@
           <v-divider></v-divider>
 
           <v-stepper-step
-            :complete="currentStep > 2"
+            :complete="complete"
             step="2"
           >
-            Transaction contract
-          </v-stepper-step>
-
-          <v-divider></v-divider>
-
-          <v-stepper-step
-            :complete="validSlatepack"
-            step="3"
-          >
-            Signature
+            Copy &#38; sign contract
           </v-stepper-step>
         </v-stepper-header>
 
@@ -38,7 +29,7 @@
             <!-- STEP 1: pick amount to withdraw -->
             <v-card
               class="mb-12"
-              height="600px"
+              height="700px"
             >
             <v-card-text>
               <h2 class="my-5">
@@ -107,7 +98,7 @@
             <!-- STEP 2: copy transaction contract -->
             <v-card
               class="mb-12"
-              height="600px"
+              height="700px"
               v-if="currentStep > 1"
             >
             <v-card-text>
@@ -119,91 +110,12 @@
                 :message="contractData.message"
                 :signatures="[...contractData.signatures]"
                 :slatepack="contractData.slatepackMsg"
+                @withdrawal-complete="completeTx"
               ></transaction-contract>
             </v-card-text>
             </v-card>
-
-            <v-btn
-              small
-              tile
-              color="primary"
-              class="black--text"
-              @click="currentStep = 3"
-            >
-              Continue
-            </v-btn>
-
             <v-btn small tile text class="mx-5" @click="$emit('close')">
-              Cancel
-            </v-btn>
-          </v-stepper-content>
-
-          <v-stepper-content step="3" >
-            <!-- STEP 3: paste signed contract -->
-            <v-card
-              class="mb-12"
-              height="600px"
-              v-if="currentStep > 2"
-            >
-            <v-card-text>
-              <v-row class="text-center align-self-center justify-center" style="height: 600px" v-if="loading.verifyingSlatepack">
-                <v-col cols="12" class="my-5" style="height: 50px">
-                  <h2>Completing transaction contract</h2>
-                </v-col>
-                <v-col style="height: 100%">
-                <v-progress-circular
-                  indeterminate
-                  color="primary"
-                  class="pt-0 text-center justify-center"
-                ></v-progress-circular>
-                </v-col>
-              </v-row>
-              <v-textarea
-                v-else-if="!validSlatepack"
-                id="slatepackmsg2"
-                v-model="signedSlatepackMsg"
-                name="slatepack-msg-2"
-                label="Paste signed transaction contract"
-                class="pa-0"
-                rows="8"
-                @input="onSlatepackPaste"
-                :loading="loading.verifyingSlatepack"
-              ></v-textarea>
-              <v-row class="text-center align-self-center justify-center" style="height: 600px" v-else>
-                <v-col cols="12" class="mt-5" style="height: 40px">
-                  <h2>Transaction contract completed</h2>
-                </v-col>
-                <v-col cols="12">
-                  <v-icon large color="primary">
-                    mdi-check
-                  </v-icon>
-                </v-col>
-                <v-col cols="12">
-                  <h3>Please check your withdrawal history for on-chain confirmation. We have locked the withdrawal amount,
-                  once the transaction lands on the chain and gets enough confirmations your grin balance on the exchange
-                  will be automatically reduced.</h3>
-                </v-col>
-              </v-row>
-            </v-card-text>
-            </v-card>
-            <v-btn
-              v-if="!loading.verifyingSlatepack && validSlatepack"
-              small
-              tile
-              color="primary"
-              class="black--text"
-              @click="$emit('close')"
-            >
-              Close
-            </v-btn>
-            <v-btn
-              v-if="!validSlatepack"
-              small
-              tile
-              text
-              @click="$emit('close')"
-            >
-              Cancel
+              {{ complete ? 'Close' : 'Cancel' }}
             </v-btn>
           </v-stepper-content>
         </v-stepper-items>
@@ -213,7 +125,6 @@
 </template>
 <script>
 import { createNamespacedHelpers } from 'vuex'
-import { copyToClipboard } from '@/shared/helpers';
 import TransactionContract from '@/components/TransactionContract.vue';
 import WalletService from '@/services/wallet';
 import { Decimal } from 'decimal.js';
@@ -240,11 +151,9 @@ export default {
     },
     currentStep: 1,
     minAmount: new Decimal(0.1),
-    signedSlatepackMsg: null,
-    validSlatepack: false,
+    complete: false,
     loading: {
       step2: false,
-      verifyingSlatepack: false,
     },
   }),
   created: function() {
@@ -256,24 +165,6 @@ export default {
     }
   },
   methods: {
-    copySlatepackMsg: function() {
-      copyToClipboard(this.slatepackMsg);
-      this.$toasted.show('Transaction contract copied!')
-    },
-    onSlatepackPaste () {
-      this.loading.verifyingSlatepack = true;
-      WalletService.finishWithdrawal(
-        'GRIN',
-        { 'slatepack_msg': this.signedSlatepackMsg }
-      ).then(() => {
-        this.validSlatepack = true;
-        this.$emit('withdrawal-complete');
-      }).catch(() => {
-        this.$toasted.error('Transaction finalization failed');
-      }).finally(() => {
-        this.loading.verifyingSlatepack = false;
-      });
-    },
     restrictDecimal () {
       this.contractData.amount = this.contractData.amount.match(/^\d+\.?\d{0,9}/);
     },
@@ -296,6 +187,12 @@ export default {
       .finally(() => {
         this.loading.step2 = false;
       });
+    },
+    completeTx () {
+      this.complete=true;
+      this.contractData.signatures.push(this.contractData.receiverAddress);
+      this.contractData.signatures.push(this.contractData.payerAddress);
+      this.$emit('withdrawal-complete');
     },
     ...mapState([
       'user',

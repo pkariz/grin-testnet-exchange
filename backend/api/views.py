@@ -174,6 +174,7 @@ class DepositViewSet(CustomModelViewSet):
                 sender_index=0
             )
         except Exception as e:
+            logger.error(str(e))
             raise APIException('Something went wrong')
         return Response(
             data= {
@@ -340,7 +341,7 @@ class WithdrawalViewSet(CustomModelViewSet):
             raise APIException('Something went wrong')
         # update the withdrawal
         tx = wallet_api.retrieve_txs(
-            tx_slate_id=final_slate['id'], refresh=False)[0]
+            tx_slate_id=final_slate['id'], refresh=True)[0]
         withdrawal.status = 'awaiting confirmation'
         withdrawal.kernel_excess = tx['kernel_excess']
         withdrawal.save()
