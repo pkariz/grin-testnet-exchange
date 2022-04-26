@@ -147,10 +147,10 @@
         <v-divider></v-divider>
         <h3 class="mt-5">
           Please copy the contract and sign it with your wallet using the command:<br>
-          ./grin-wallet --testnet contract sign --send={{ amount }}&nbsp;&nbsp;
+          ./grin-wallet --testnet contract sign&nbsp;&nbsp;
           <v-fab-transition>
             <v-icon v-if="cmdCopied" color="yellow">mdi-check</v-icon>
-            <v-icon v-else @click.stop="copyCmd(`./grin-wallet --testnet contract sign --send=${amount}`)">
+            <v-icon v-else @click.stop="copyCmd(`./grin-wallet --testnet contract sign`)">
               mdi-content-copy
             </v-icon>
           </v-fab-transition>
