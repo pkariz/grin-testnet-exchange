@@ -1,5 +1,5 @@
 # Grin testnet exchange
-Example of how exchanges can integrate grin.
+Example of a grin exchange integration. This was done to test the flows, so the implementation is not secure (missing some very important checks!).
 
 # Run locally
 1.  fill out the missing ENV variables in `.env` (you can also set wallet address of the exchange in `.env.development`, although that's only used to display it to the user)
